@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AppTheme } from '@/types';
 import { Capacitor } from '@capacitor/core';
-import { StatusBar } from '@capacitor/status-bar';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 type ThemeContextType = {
   theme: AppTheme;
@@ -53,9 +53,9 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     if (Capacitor.isPluginAvailable('StatusBar')) {
       try {
         if (isDark) {
-          StatusBar.setStyle({ style: 'DARK' });
+          StatusBar.setStyle({ style: Style.Dark });
         } else {
-          StatusBar.setStyle({ style: 'LIGHT' });
+          StatusBar.setStyle({ style: Style.Light });
         }
       } catch (error) {
         console.error('Error setting status bar style:', error);
