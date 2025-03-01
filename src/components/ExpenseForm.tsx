@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { uploadPaymentProof } from '@/integrations/supabase/api';
 
 type ExpenseFormProps = {
   isOpen: boolean;
@@ -55,8 +55,10 @@ const ExpenseForm = ({
   const [splits, setSplits] = useState<Record<string, number>>({});
   const [splitPercentages, setSplitPercentages] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
+  const [proofOfPayment, setProofOfPayment] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Reset form when dialog opens or expenseToEdit changes
   useEffect(() => {
     if (isOpen) {
       if (expenseToEdit) {
@@ -67,18 +69,15 @@ const ExpenseForm = ({
         setCategory(expenseToEdit.category || "Food & Drinks");
         setNotes(expenseToEdit.notes || "");
 
-        // Extract selected friends from expense splits
         const expenseFriends = expenseToEdit.splits.map(split => split.friendId);
         setSelectedFriends(expenseFriends);
 
-        // Initialize splits and percentages
         const splitAmounts: Record<string, number> = {};
         const splitPercs: Record<string, number> = {};
         
         expenseToEdit.splits.forEach(split => {
           splitAmounts[split.friendId] = split.amount;
           
-          // Calculate percentage if not provided
           const percentage = split.percentage || 
             (expenseToEdit.amount > 0 ? (split.amount / expenseToEdit.amount) * 100 : 0);
           
@@ -88,13 +87,11 @@ const ExpenseForm = ({
         setSplits(splitAmounts);
         setSplitPercentages(splitPercs);
         
-        // Determine if it's an equal or custom split
         const isEqual = Object.values(splitAmounts).every(
           value => Math.abs(value - Object.values(splitAmounts)[0]) < 0.01
         );
         setSplitMode(isEqual ? "equal" : "custom");
       } else {
-        // Reset form for new expense
         setDescription("");
         setAmount("");
         setDate(new Date());
@@ -109,7 +106,6 @@ const ExpenseForm = ({
     }
   }, [isOpen, expenseToEdit, currentUserId]);
 
-  // Update splits when amount, selected friends, or split mode changes
   useEffect(() => {
     if (selectedFriends.length === 0 || !amount || isNaN(parseFloat(amount))) {
       return;
@@ -121,7 +117,6 @@ const ExpenseForm = ({
       const evenSplits = distributeExpenseEvenly(totalAmount, selectedFriends);
       setSplits(evenSplits);
 
-      // Calculate percentages
       const percentages: Record<string, number> = {};
       for (const [friendId, splitAmount] of Object.entries(evenSplits)) {
         percentages[friendId] = (splitAmount / totalAmount) * 100;
@@ -132,12 +127,10 @@ const ExpenseForm = ({
 
   const handleSplitChange = (friendId: string, value: number) => {
     if (splitMode === "custom") {
-      // Update the individual split
       const newSplits = { ...splits };
       newSplits[friendId] = value;
       setSplits(newSplits);
 
-      // Recalculate percentages
       const totalAmount = parseFloat(amount);
       if (totalAmount > 0) {
         const newPercentages = { ...splitPercentages };
@@ -149,12 +142,10 @@ const ExpenseForm = ({
 
   const handlePercentageChange = (friendId: string, percentage: number) => {
     if (splitMode === "custom") {
-      // Update the percentage
       const newPercentages = { ...splitPercentages };
       newPercentages[friendId] = percentage;
       setSplitPercentages(newPercentages);
 
-      // Recalculate the split amount
       const totalAmount = parseFloat(amount);
       if (totalAmount > 0) {
         const newSplits = { ...splits };
@@ -174,7 +165,13 @@ const ExpenseForm = ({
     }
   };
 
-  const handleSubmit = () => {
+  const handleProofOfPaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setProofOfPayment(e.target.files[0]);
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!description.trim()) {
       setError("Please enter a description");
       return;
@@ -193,32 +190,54 @@ const ExpenseForm = ({
     const totalAmount = parseFloat(amount);
     const totalSplit = Object.values(splits).reduce((sum, val) => sum + val, 0);
 
-    // Check if split amounts add up to total (with small margin for floating point errors)
     if (Math.abs(totalSplit - totalAmount) > 0.01) {
       setError(`Split amounts must add up to the total (${formatCurrency(totalAmount)})`);
       return;
     }
 
-    // Prepare expense splits
-    const expenseSplits: ExpenseSplit[] = Object.entries(splits).map(([friendId, amount]) => ({
-      friendId,
-      amount,
-      percentage: splitPercentages[friendId] || 0,
-    }));
+    try {
+      let proofOfPaymentUrl = expenseToEdit?.proofOfPaymentUrl || '';
+      
+      if (proofOfPayment) {
+        setIsUploading(true);
+        setUploadProgress(10);
+        
+        const uploadedUrl = await uploadPaymentProof(proofOfPayment);
+        
+        setUploadProgress(100);
+        
+        if (uploadedUrl) {
+          proofOfPaymentUrl = uploadedUrl;
+        }
+      }
 
-    const newExpense: Expense = {
-      id: expenseToEdit?.id || `expense-${Date.now()}`,
-      description,
-      amount: parseFloat(amount),
-      date,
-      payerId,
-      splits: expenseSplits,
-      category,
-      notes,
-    };
+      const expenseSplits: ExpenseSplit[] = Object.entries(splits).map(([friendId, amount]) => ({
+        friendId,
+        amount,
+        percentage: splitPercentages[friendId] || 0,
+      }));
 
-    onSave(newExpense);
-    onClose();
+      const newExpense: Expense = {
+        id: expenseToEdit?.id || `expense-${Date.now()}`,
+        description,
+        amount: parseFloat(amount),
+        date,
+        payerId,
+        splits: expenseSplits,
+        category,
+        notes,
+        proofOfPaymentUrl,
+      };
+
+      onSave(newExpense);
+      onClose();
+    } catch (error) {
+      console.error("Error saving expense:", error);
+      setError("Failed to save expense. Please try again.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   return (
@@ -433,6 +452,71 @@ const ExpenseForm = ({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="proofOfPayment">Proof of Payment (Optional)</Label>
+              <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
+                {isUploading ? (
+                  <div className="flex flex-col items-center justify-center py-2">
+                    <Loader2 className="h-6 w-6 text-primary animate-spin mb-2" />
+                    <div className="w-full bg-secondary h-2 rounded-full mt-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">Uploading...</p>
+                  </div>
+                ) : proofOfPayment ? (
+                  <div className="py-2">
+                    <p className="text-sm font-medium">{proofOfPayment.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(proofOfPayment.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setProofOfPayment(null)}
+                      className="mt-2"
+                    >
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <label 
+                      htmlFor="file-upload" 
+                      className="flex flex-col items-center justify-center cursor-pointer py-2"
+                    >
+                      <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-sm font-medium">Click to upload a receipt or screenshot</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG or PDF (max. 5MB)</p>
+                    </label>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      className="hidden"
+                      accept="image/png,image/jpeg,application/pdf"
+                      onChange={handleProofOfPaymentChange}
+                    />
+                  </div>
+                )}
+                
+                {expenseToEdit?.proofOfPaymentUrl && !proofOfPayment && (
+                  <div className="mt-2 pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">Current proof of payment:</p>
+                    <a 
+                      href={expenseToEdit.proofOfPaymentUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary underline"
+                    >
+                      View document
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Input
                 id="notes"
@@ -450,8 +534,17 @@ const ExpenseForm = ({
             <Button variant="outline" onClick={onClose} className="glass-panel">
               Cancel
             </Button>
-            <Button onClick={handleSubmit} className="button-hover">
-              {expenseToEdit ? "Update Expense" : "Add Expense"}
+            <Button 
+              onClick={handleSubmit} 
+              className="button-hover"
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : expenseToEdit ? "Update Expense" : "Add Expense"}
             </Button>
           </DialogFooter>
         </motion.div>

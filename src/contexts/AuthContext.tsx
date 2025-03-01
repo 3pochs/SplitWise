@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { UserProfile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User, AuthError } from '@supabase/supabase-js';
+import { fetchUserProfile } from '@/integrations/supabase/api';
+import { useToast } from '@/hooks/use-toast';
 
 type AuthContextType = {
   user: UserProfile | null;
@@ -24,6 +26,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const { toast } = useToast();
 
   // Check for session on load and set up auth subscription
   useEffect(() => {
@@ -35,10 +38,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           setSupabaseUser(session.user);
-          await fetchUserProfile(session.user);
+          await fetchAndSetUserProfile(session.user);
         }
       } catch (error) {
         console.error('Error checking session:', error);
+        toast({
+          title: 'Authentication Error',
+          description: 'There was a problem checking your login status.',
+          variant: 'destructive',
+        });
       } finally {
         setIsLoading(false);
       }
@@ -53,7 +61,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSupabaseUser(session?.user || null);
         
         if (session?.user) {
-          await fetchUserProfile(session.user);
+          await fetchAndSetUserProfile(session.user);
         } else {
           setUser(null);
         }
@@ -67,25 +75,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, []);
 
-  // Fetch user profile from database or create one if it doesn't exist
-  const fetchUserProfile = async (authUser: User) => {
+  // Fetch user profile from database
+  const fetchAndSetUserProfile = async (authUser: User) => {
     try {
-      // Try to get profile from database
-      let userProfile: UserProfile = {
-        id: authUser.id,
-        email: authUser.email || '',
-        name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || '',
-        preferences: {
-          darkMode: false,
-          currency: 'USD',
-          language: 'en',
-          notificationsEnabled: true,
-        },
-      };
-
-      setUser(userProfile);
+      const userProfile = await fetchUserProfile(authUser.id);
+      
+      if (userProfile) {
+        setUser(userProfile);
+      } else {
+        // If no profile exists, create a default one
+        const defaultProfile: UserProfile = {
+          id: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || '',
+          preferences: {
+            darkMode: false,
+            currency: 'USD',
+            language: 'en',
+            notificationsEnabled: true,
+          },
+        };
+        setUser(defaultProfile);
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      toast({
+        title: 'Profile Error',
+        description: 'Could not load your profile. Please try again later.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -100,6 +118,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (error) throw error;
     } catch (error) {
       console.error('Login error:', error);
+      const authError = error as AuthError;
+      toast({
+        title: 'Login Failed',
+        description: authError.message || 'Please check your credentials and try again.',
+        variant: 'destructive',
+      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -120,8 +144,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (error) throw error;
+      
+      toast({
+        title: 'Registration Successful',
+        description: 'Please check your email to confirm your account.',
+      });
     } catch (error) {
       console.error('Registration error:', error);
+      const authError = error as AuthError;
+      toast({
+        title: 'Registration Failed',
+        description: authError.message || 'Could not create your account. Please try again.',
+        variant: 'destructive',
+      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -134,8 +169,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
+      toast({
+        title: 'Logged Out',
+        description: 'You have been successfully logged out.',
+      });
     } catch (error) {
       console.error('Logout error:', error);
+      toast({
+        title: 'Logout Error',
+        description: 'There was a problem logging you out. Please try again.',
+        variant: 'destructive',
+      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -147,7 +191,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsLoading(true);
       if (!user) throw new Error('No user logged in');
       
-      // Update user metadata
+      // Update user metadata if name is provided
       if (profile.name) {
         const { error } = await supabase.auth.updateUser({
           data: { name: profile.name }
@@ -156,11 +200,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (error) throw error;
       }
       
+      // Update profile in the database
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: profile.name || user.name,
+          avatar_url: profile.avatarUrl || user.avatarUrl,
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
       // Update local state
       const updatedUser = { ...user, ...profile };
       setUser(updatedUser);
+      
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been successfully updated.',
+      });
     } catch (error) {
       console.error('Update profile error:', error);
+      toast({
+        title: 'Update Failed',
+        description: 'Could not update your profile. Please try again later.',
+        variant: 'destructive',
+      });
       throw error;
     } finally {
       setIsLoading(false);

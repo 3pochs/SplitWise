@@ -9,7 +9,158 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      expense_splits: {
+        Row: {
+          amount: number
+          created_at: string
+          expense_id: string
+          id: string
+          percentage: number | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expense_id: string
+          id?: string
+          percentage?: number | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expense_id?: string
+          id?: string
+          percentage?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_splits_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          created_by: string
+          date: string
+          description: string
+          id: string
+          notes: string | null
+          payer_id: string
+          proof_of_payment_url: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          created_by: string
+          date?: string
+          description: string
+          id?: string
+          notes?: string | null
+          payer_id: string
+          proof_of_payment_url?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          date?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          payer_id?: string
+          proof_of_payment_url?: string | null
+        }
+        Relationships: []
+      }
+      friends: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          id: string
+          name: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      settlements: {
+        Row: {
+          amount: number
+          created_at: string
+          from_id: string
+          id: string
+          proof_of_payment_url: string | null
+          status: string
+          to_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          from_id: string
+          id?: string
+          proof_of_payment_url?: string | null
+          status?: string
+          to_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          from_id?: string
+          id?: string
+          proof_of_payment_url?: string | null
+          status?: string
+          to_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
