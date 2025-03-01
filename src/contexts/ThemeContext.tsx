@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AppTheme } from '@/types';
+import { Capacitor } from '@capacitor/core';
 
 type ThemeContextType = {
   theme: AppTheme;
@@ -33,10 +34,32 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
       root.classList.remove('light', 'dark');
       root.classList.add(systemPreference);
       setIsDarkMode(systemPreference === 'dark');
+      
+      // Set status bar style on mobile devices
+      updateStatusBarStyle(systemPreference === 'dark');
     } else {
       root.classList.remove('light', 'dark');
       root.classList.add(newTheme);
       setIsDarkMode(newTheme === 'dark');
+      
+      // Set status bar style on mobile devices
+      updateStatusBarStyle(newTheme === 'dark');
+    }
+  };
+
+  // Function to update status bar style for mobile devices
+  const updateStatusBarStyle = (isDark: boolean) => {
+    if (Capacitor.isPluginAvailable('StatusBar')) {
+      try {
+        const { StatusBar } = Capacitor.Plugins;
+        if (isDark) {
+          StatusBar.setStyle({ style: 'DARK' });
+        } else {
+          StatusBar.setStyle({ style: 'LIGHT' });
+        }
+      } catch (error) {
+        console.error('Error setting status bar style:', error);
+      }
     }
   };
 
