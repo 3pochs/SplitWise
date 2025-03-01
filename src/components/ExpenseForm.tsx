@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Expense, Friend, ExpenseSplit } from "@/types";
 import { formatCurrency, distributeExpenseEvenly } from "@/utils/expenseUtils";
 import { Slider } from "@/components/ui/slider";
-import { CalendarIcon, Divide, DollarSign, SplitSquareVertical, Users } from "lucide-react";
+import { CalendarIcon, Divide, DollarSign, Loader2, SplitSquareVertical, UploadCloud, Users } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";

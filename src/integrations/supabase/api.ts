@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { Expense, Friend, ExpenseSplit, Settlement, UserProfile } from '@/types';
 
@@ -73,17 +72,61 @@ export const fetchFriends = async (userId: string): Promise<Friend[]> => {
   // Transform the data to match the Friend type
   return data.map(friend => {
     const isUser = friend.user_id === userId;
-    const friendProfile = friend.profiles;
+    const friendId = isUser ? friend.friend_id : friend.user_id;
     
+    // Need to fetch the profile separately since the join isn't working
     return {
-      id: friendProfile.id,
-      name: friendProfile.name,
-      email: friendProfile.email,
-      avatarUrl: friendProfile.avatar_url,
+      id: friendId,
+      name: "Friend", // Placeholder, will be updated
+      email: "", // Placeholder, will be updated
+      avatarUrl: undefined,
       isUser: false
     };
   });
 };
+
+export const fetchFriends2 = async (userId: string): Promise<Friend[]> => {
+  // First get the friend connections
+  const { data: connections, error: connectionsError } = await supabase
+    .from('friends')
+    .select('*')
+    .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+    .eq('status', 'accepted');
+    
+  if (connectionsError || !connections) {
+    console.error('Error fetching friend connections:', connectionsError);
+    return [];
+  }
+  
+  // Extract friend IDs (the other user in each connection)
+  const friendIds = connections.map(conn => 
+    conn.user_id === userId ? conn.friend_id : conn.user_id
+  );
+  
+  if (friendIds.length === 0) return [];
+  
+  // Then fetch the profiles for these friends
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', friendIds);
+    
+  if (profilesError || !profiles) {
+    console.error('Error fetching friend profiles:', profilesError);
+    return [];
+  }
+  
+  // Transform to Friend objects
+  return profiles.map(profile => ({
+    id: profile.id,
+    name: profile.name,
+    email: profile.email,
+    avatarUrl: profile.avatar_url,
+    isUser: false
+  }));
+};
+
+export { fetchFriends2 as fetchFriends };
 
 export const addFriend = async (userId: string, friendEmail: string): Promise<Friend | null> => {
   // First, check if the friend exists in profiles
