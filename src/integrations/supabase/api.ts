@@ -49,43 +49,6 @@ export const updateUserProfile = async (profile: Partial<UserProfile> & { id: st
 
 // Friend functions
 export const fetchFriends = async (userId: string): Promise<Friend[]> => {
-  // Get friends where the user is either the user_id or friend_id
-  const { data, error } = await supabase
-    .from('friends')
-    .select(`
-      id,
-      status,
-      user_id,
-      friend_id,
-      profiles!friends_friend_id_fkey (id, name, email, avatar_url)
-    `)
-    .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-    .eq('status', 'accepted');
-    
-  if (error) {
-    console.error('Error fetching friends:', error);
-    return [];
-  }
-  
-  if (!data) return [];
-  
-  // Transform the data to match the Friend type
-  return data.map(friend => {
-    const isUser = friend.user_id === userId;
-    const friendId = isUser ? friend.friend_id : friend.user_id;
-    
-    // Need to fetch the profile separately since the join isn't working
-    return {
-      id: friendId,
-      name: "Friend", // Placeholder, will be updated
-      email: "", // Placeholder, will be updated
-      avatarUrl: undefined,
-      isUser: false
-    };
-  });
-};
-
-export const fetchFriends2 = async (userId: string): Promise<Friend[]> => {
   // First get the friend connections
   const { data: connections, error: connectionsError } = await supabase
     .from('friends')
@@ -125,8 +88,6 @@ export const fetchFriends2 = async (userId: string): Promise<Friend[]> => {
     isUser: false
   }));
 };
-
-export { fetchFriends2 as fetchFriends };
 
 export const addFriend = async (userId: string, friendEmail: string): Promise<Friend | null> => {
   // First, check if the friend exists in profiles
