@@ -12,12 +12,14 @@ import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMemo } from "react";
 import { Loader } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [friends, setFriends] = useState<Friend[]>([
-    { id: "friend-1", name: "Alex" },
-    { id: "friend-2", name: "Taylor" },
+    { id: "friend-1", name: "Alex", isUser: true, email: "alex@example.com" },
+    { id: "friend-2", name: "Taylor", isUser: false },
   ]);
   const [currentTab, setCurrentTab] = useState<Tab>("expenses");
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
@@ -25,8 +27,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const currentUserId = "current-user";
-  const currentUserName = "You";
+  const currentUserId = user?.id || "current-user";
+  const currentUserName = user?.name || "You";
 
   // Calculate balances and settlements
   const balances = useMemo(() => {
@@ -41,7 +43,7 @@ const Index = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1500);
+    }, 1000);
     
     return () => clearTimeout(timer);
   }, []);
@@ -104,6 +106,14 @@ const Index = () => {
     setFriends(friends.filter((f) => f.id !== friendId));
   };
 
+  const handleInviteFriend = (email: string) => {
+    // This would be implemented with Supabase to send an actual invitation
+    toast({
+      title: "Invitation sent",
+      description: `An invitation has been sent to ${email}.`,
+    });
+  };
+
   const handleSettlementComplete = (settlement: Settlement) => {
     // Create a new expense to record the settlement
     const settlementExpense: Expense = {
@@ -121,6 +131,7 @@ const Index = () => {
       ],
       category: "Settlement",
       notes: "Debt settlement",
+      proofOfPaymentUrl: settlement.proofOfPaymentUrl,
     };
 
     setExpenses([...expenses, settlementExpense]);
@@ -185,6 +196,7 @@ const Index = () => {
                 currentUserName={currentUserName}
                 onAddFriend={handleAddFriend}
                 onDeleteFriend={handleDeleteFriend}
+                onInviteFriend={handleInviteFriend}
               />
             </motion.div>
           )}
@@ -220,6 +232,18 @@ const Index = () => {
                 currentUserName={currentUserName}
                 onSettlementComplete={handleSettlementComplete}
               />
+            </motion.div>
+          )}
+
+          {currentTab === "settings" && (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Settings />
             </motion.div>
           )}
         </AnimatePresence>

@@ -3,6 +3,8 @@ export type Friend = {
   id: string;
   name: string;
   avatarUrl?: string;
+  email?: string;
+  isUser?: boolean; // To distinguish between app users and external friends
 };
 
 export type ExpenseSplit = {
@@ -20,6 +22,7 @@ export type Expense = {
   splits: ExpenseSplit[];
   category?: string;
   notes?: string;
+  proofOfPaymentUrl?: string; // URL to the proof of payment image
 };
 
 export type Balance = {
@@ -31,6 +34,23 @@ export type Settlement = {
   fromId: string;
   toId: string;
   amount: number;
+  status?: 'pending' | 'completed';
+  proofOfPaymentUrl?: string;
 };
 
-export type Tab = 'expenses' | 'friends' | 'balances' | 'settlements';
+export type Tab = 'expenses' | 'friends' | 'balances' | 'settlements' | 'settings';
+
+export type UserProfile = {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  preferences: {
+    darkMode: boolean;
+    currency: string;
+    language: string;
+    notificationsEnabled: boolean;
+  };
+};
+
+export type AppTheme = 'light' | 'dark' | 'system';

@@ -2,17 +2,20 @@
 import { useState } from "react";
 import { Friend } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Plus, User, Users, X } from "lucide-react";
+import { Plus, User, Users, X, Mail, Check, UserCheck } from "lucide-react";
 import AddFriendModal from "./AddFriendModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "./ui/input";
+import { Badge } from "./ui/badge";
 
 type FriendsListProps = {
   friends: Friend[];
   currentUserName: string;
   onAddFriend: (friend: Friend) => void;
   onDeleteFriend: (friendId: string) => void;
+  onInviteFriend?: (email: string) => void;
 };
 
 const FriendsList = ({
@@ -20,8 +23,10 @@ const FriendsList = ({
   currentUserName,
   onAddFriend,
   onDeleteFriend,
+  onInviteFriend,
 }: FriendsListProps) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
   const { toast } = useToast();
 
   const handleDelete = (friend: Friend) => {
@@ -31,6 +36,20 @@ const FriendsList = ({
       description: `${friend.name} has been removed from your friends list.`,
     });
   };
+
+  const handleInvite = () => {
+    if (!inviteEmail.trim() || !onInviteFriend) return;
+    
+    onInviteFriend(inviteEmail);
+    toast({
+      title: "Invitation sent",
+      description: `An invitation has been sent to ${inviteEmail}.`,
+    });
+    setInviteEmail("");
+  };
+
+  const appUsers = friends.filter(friend => friend.isUser);
+  const externalFriends = friends.filter(friend => !friend.isUser);
 
   return (
     <div className="w-full max-w-3xl mx-auto p-4">
@@ -55,6 +74,23 @@ const FriendsList = ({
         </div>
       </div>
 
+      {onInviteFriend && (
+        <div className="bg-card rounded-lg shadow-sm overflow-hidden mb-6 p-4">
+          <h3 className="font-medium mb-3">Invite Friends to SplitWise</h3>
+          <div className="flex gap-2">
+            <Input
+              placeholder="friend@example.com"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              type="email"
+            />
+            <Button onClick={handleInvite}>
+              <Mail className="mr-1 h-4 w-4" /> Invite
+            </Button>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence>
         {friends.length === 0 ? (
           <motion.div
@@ -73,50 +109,53 @@ const FriendsList = ({
             </Button>
           </motion.div>
         ) : (
-          <motion.div 
-            className="space-y-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {friends.map((friend, index) => (
+          <div className="space-y-6">
+            {appUsers.length > 0 && (
               <motion.div
-                key={friend.id}
-                className="bg-card rounded-lg shadow-sm overflow-hidden card-hover"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-2"
               >
-                <div className="p-4 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 border border-border">
-                      {friend.avatarUrl ? (
-                        <AvatarImage src={friend.avatarUrl} />
-                      ) : (
-                        <AvatarFallback className="bg-secondary text-secondary-foreground">
-                          {friend.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div>
-                      <h3 className="font-medium">{friend.name}</h3>
-                      <p className="text-xs text-muted-foreground">Friend</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(friend)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" /> 
+                  App Users
+                </h3>
+                <motion.div className="space-y-3">
+                  {appUsers.map((friend, index) => (
+                    <FriendItem 
+                      key={friend.id} 
+                      friend={friend} 
+                      index={index} 
+                      onDelete={handleDelete} 
+                    />
+                  ))}
+                </motion.div>
               </motion.div>
-            ))}
-          </motion.div>
+            )}
+
+            {externalFriends.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-2"
+              >
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <User className="h-4 w-4" /> 
+                  External Friends
+                </h3>
+                <motion.div className="space-y-3">
+                  {externalFriends.map((friend, index) => (
+                    <FriendItem 
+                      key={friend.id} 
+                      friend={friend} 
+                      index={index} 
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </motion.div>
+              </motion.div>
+            )}
+          </div>
         )}
       </AnimatePresence>
 
@@ -126,6 +165,60 @@ const FriendsList = ({
         onAddFriend={onAddFriend}
       />
     </div>
+  );
+};
+
+type FriendItemProps = {
+  friend: Friend;
+  index: number;
+  onDelete: (friend: Friend) => void;
+};
+
+const FriendItem = ({ friend, index, onDelete }: FriendItemProps) => {
+  return (
+    <motion.div
+      className="bg-card rounded-lg shadow-sm overflow-hidden card-hover"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+      layout
+    >
+      <div className="p-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10 border border-border">
+            {friend.avatarUrl ? (
+              <AvatarImage src={friend.avatarUrl} />
+            ) : (
+              <AvatarFallback className="bg-secondary text-secondary-foreground">
+                {friend.name.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium">{friend.name}</h3>
+              {friend.isUser && (
+                <Badge variant="outline" className="text-xs py-0">
+                  <Check className="h-3 w-3 mr-1" /> App User
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {friend.email || "Friend"}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:bg-destructive/10"
+          onClick={() => onDelete(friend)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </motion.div>
   );
 };
 
