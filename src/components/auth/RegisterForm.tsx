@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { AuthError } from '@supabase/supabase-js';
 
 type RegisterFormProps = {
   onToggleForm: () => void;
@@ -38,13 +39,14 @@ const RegisterForm = ({ onToggleForm }: RegisterFormProps) => {
       await register(email, password, name);
       toast({
         title: 'Registration successful',
-        description: 'Welcome to SplitWise!',
+        description: 'Welcome to SplitWise! Please check your email to confirm your account.',
       });
     } catch (error) {
       console.error('Registration error:', error);
+      const authError = error as AuthError;
       toast({
         title: 'Registration failed',
-        description: 'An error occurred during registration. Please try again.',
+        description: authError.message || 'An error occurred during registration. Please try again.',
         variant: 'destructive',
       });
     } finally {

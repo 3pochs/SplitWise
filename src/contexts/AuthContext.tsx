@@ -1,6 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserProfile } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 
 type AuthContextType = {
   user: UserProfile | null;
@@ -21,16 +23,19 @@ type AuthProviderProps = {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
 
-  // This will be replaced with actual Supabase auth logic once integrated
+  // Check for session on load and set up auth subscription
   useEffect(() => {
-    // Simulate checking for an existing session
+    setIsLoading(true);
+
+    // Check for existing session
     const checkSession = async () => {
       try {
-        // For now, we'll just check if there's a user in localStorage
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setSupabaseUser(session.user);
+          await fetchUserProfile(session.user);
         }
       } catch (error) {
         console.error('Error checking session:', error);
@@ -40,17 +45,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     checkSession();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event);
+        setSupabaseUser(session?.user || null);
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user);
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  // Fetch user profile from database or create one if it doesn't exist
+  const fetchUserProfile = async (authUser: User) => {
     try {
-      setIsLoading(true);
-      // This will be replaced with actual Supabase auth
-      // Simulate successful login
-      const mockUser: UserProfile = {
-        id: 'user-' + Date.now(),
-        email,
-        name: email.split('@')[0],
+      // Try to get profile from database
+      let userProfile: UserProfile = {
+        id: authUser.id,
+        email: authUser.email || '',
+        name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || '',
         preferences: {
           darkMode: false,
           currency: 'USD',
@@ -58,8 +82,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           notificationsEnabled: true,
         },
       };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+
+      setUser(userProfile);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -71,21 +109,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
-      // This will be replaced with actual Supabase auth
-      // Simulate successful registration
-      const mockUser: UserProfile = {
-        id: 'user-' + Date.now(),
+      const { error } = await supabase.auth.signUp({
         email,
-        name,
-        preferences: {
-          darkMode: false,
-          currency: 'USD',
-          language: 'en',
-          notificationsEnabled: true,
+        password,
+        options: {
+          data: {
+            name,
+          },
         },
-      };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+      });
+
+      if (error) throw error;
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -97,9 +131,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = async () => {
     try {
       setIsLoading(true);
-      // This will be replaced with actual Supabase auth
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       setUser(null);
-      localStorage.removeItem('user');
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
@@ -113,10 +147,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsLoading(true);
       if (!user) throw new Error('No user logged in');
       
-      // This will be replaced with actual Supabase update
+      // Update user metadata
+      if (profile.name) {
+        const { error } = await supabase.auth.updateUser({
+          data: { name: profile.name }
+        });
+        
+        if (error) throw error;
+      }
+      
+      // Update local state
       const updatedUser = { ...user, ...profile };
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (error) {
       console.error('Update profile error:', error);
       throw error;

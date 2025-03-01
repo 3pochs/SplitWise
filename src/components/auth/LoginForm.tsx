@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { AuthError } from '@supabase/supabase-js';
 
 type LoginFormProps = {
   onToggleForm: () => void;
@@ -30,9 +31,10 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
       });
     } catch (error) {
       console.error('Login error:', error);
+      const authError = error as AuthError;
       toast({
         title: 'Login failed',
-        description: 'Please check your credentials and try again.',
+        description: authError.message || 'Please check your credentials and try again.',
         variant: 'destructive',
       });
     } finally {
