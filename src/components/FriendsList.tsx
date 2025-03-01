@@ -102,7 +102,7 @@ const FriendsList = ({
             <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No friends yet</h3>
             <p className="text-muted-foreground mb-4">
-              Add friends to split expenses with them.
+              Add friends by their username to split expenses with them.
             </p>
             <Button onClick={() => setIsAddModalOpen(true)}>
               <Plus className="mr-1 h-4 w-4" /> Add Your First Friend

@@ -166,7 +166,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_friend_by_username: {
+        Args: {
+          user_id: string
+          friend_username: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       budget_level: "budget" | "mid-range" | "luxury"

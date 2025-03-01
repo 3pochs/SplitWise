@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import { Expense, Friend, ExpenseSplit, Settlement, UserProfile } from '@/types';
 
@@ -90,39 +91,58 @@ export const fetchFriends = async (userId: string): Promise<Friend[]> => {
   }));
 };
 
-export const addFriend = async (userId: string, friendNameOrEmail: string): Promise<Friend | null> => {
-  // First, check if the friend exists in profiles by name
-  const { data: friendData, error: friendError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('name', friendNameOrEmail)
-    .maybeSingle();
-    
-  if (friendError) {
-    console.error('Error finding friend:', friendError);
-    return null;
-  }
+export const addFriend = async (userId: string, usernameOrEmail: string): Promise<Friend | null> => {
+  console.log(`Attempting to add friend with username/email: ${usernameOrEmail}`);
   
-  // If not found by name, try by email (fallback for backward compatibility)
-  if (!friendData) {
-    const { data: emailFriendData, error: emailFriendError } = await supabase
+  // First try to add by username using our new function
+  const { data: friendIdData, error: functionError } = await supabase
+    .rpc('add_friend_by_username', {
+      user_id: userId,
+      friend_username: usernameOrEmail
+    });
+    
+  if (functionError) {
+    console.error('Error adding friend by username:', functionError);
+    // Continue to try by email as fallback
+  } else if (friendIdData) {
+    // Successfully added by username, now fetch the friend's profile
+    const { data: friendProfile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('email', friendNameOrEmail)
-      .maybeSingle();
+      .eq('id', friendIdData)
+      .single();
       
-    if (emailFriendError || !emailFriendData) {
-      console.error('Friend not found by name or email:', emailFriendError);
+    if (profileError || !friendProfile) {
+      console.error('Error fetching added friend profile:', profileError);
       return null;
     }
     
-    // Set friendData to the result from email search
-    const friendData = emailFriendData;
+    return {
+      id: friendProfile.id,
+      name: friendProfile.name,
+      email: friendProfile.email,
+      username: friendProfile.name, // Use name as username
+      avatarUrl: friendProfile.avatar_url,
+      isUser: true
+    };
   }
   
-  // If still not found, return null
+  // If we get here, either there was an error with the function call or the friend wasn't found by username
+  // Try the original method of searching by email (as a fallback)
+  const { data: friendData, error: friendError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('email', usernameOrEmail)
+    .maybeSingle();
+    
+  if (friendError) {
+    console.error('Error finding friend by email:', friendError);
+    return null;
+  }
+  
+  // If friend not found by either username or email, return null
   if (!friendData) {
-    console.error('Friend not found by name or email');
+    console.error('Friend not found by username or email');
     return null;
   }
   

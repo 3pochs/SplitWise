@@ -26,7 +26,7 @@ const AddFriendModal = ({ isOpen, onClose, onAddFriend }: AddFriendModalProps) =
     const newFriend: Friend = {
       id: `friend-${Date.now()}`, // This will be replaced with the actual ID from the server
       name: username.trim(),
-      username: username.trim(), // Adding username field
+      username: username.trim(),
     };
 
     onAddFriend(newFriend);
@@ -63,6 +63,9 @@ const AddFriendModal = ({ isOpen, onClose, onAddFriend }: AddFriendModalProps) =
                 autoFocus
               />
               {error && <p className="text-destructive text-sm">{error}</p>}
+              <p className="text-sm text-muted-foreground">
+                Enter your friend's username to add them to your list.
+              </p>
             </div>
           </div>
 
