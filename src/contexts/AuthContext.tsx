@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserProfile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +38,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (session) {
           setSupabaseUser(session.user);
           await fetchAndSetUserProfile(session.user);
+        } else {
+          // Important: Make sure to set loading to false even when no session is found
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('Error checking session:', error);
@@ -47,7 +49,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           description: 'There was a problem checking your login status.',
           variant: 'destructive',
         });
-      } finally {
+        // Important: Make sure to set loading to false on error
         setIsLoading(false);
       }
     };
@@ -64,8 +66,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           await fetchAndSetUserProfile(session.user);
         } else {
           setUser(null);
+          // Important: Make sure to set loading to false when auth state changes to signed out
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
@@ -104,6 +107,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         description: 'Could not load your profile. Please try again later.',
         variant: 'destructive',
       });
+    } finally {
+      // Important: Always set loading to false after profile fetch attempt
+      setIsLoading(false);
     }
   };
 
