@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Expense, Friend, Balance, Settlement, Tab } from "@/types";
 import Header from "@/components/Header";
@@ -13,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMemo } from "react";
 import { Loader } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const { user } = useAuth();
@@ -30,7 +30,6 @@ const Index = () => {
   const currentUserId = user?.id || "current-user";
   const currentUserName = user?.name || "You";
 
-  // Calculate balances and settlements
   const balances = useMemo(() => {
     return calculateBalances(expenses, [...friends, { id: currentUserId, name: currentUserName }], currentUserId);
   }, [expenses, friends, currentUserId, currentUserName]);
@@ -39,7 +38,6 @@ const Index = () => {
     return generateSettlements(balances, friends);
   }, [balances, friends]);
 
-  // Simulate loading state
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -89,7 +87,6 @@ const Index = () => {
   };
 
   const handleDeleteFriend = (friendId: string) => {
-    // Check if friend has any expenses
     const hasExpenses = expenses.some(
       (e) => e.payerId === friendId || e.splits.some((s) => s.friendId === friendId)
     );
@@ -107,7 +104,6 @@ const Index = () => {
   };
 
   const handleInviteFriend = (email: string) => {
-    // This would be implemented with Supabase to send an actual invitation
     toast({
       title: "Invitation sent",
       description: `An invitation has been sent to ${email}.`,
@@ -115,7 +111,6 @@ const Index = () => {
   };
 
   const handleSettlementComplete = (settlement: Settlement) => {
-    // Create a new expense to record the settlement
     const settlementExpense: Expense = {
       id: `settlement-${Date.now()}`,
       description: "Settlement",
@@ -243,7 +238,16 @@ const Index = () => {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
             >
-              <Settings />
+              <div className="text-center py-10">
+                <h2 className="text-2xl font-bold mb-4">Settings</h2>
+                <p className="mb-6">Please visit the settings page to manage your preferences.</p>
+                <Link 
+                  to="/settings" 
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Go to Settings
+                </Link>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
