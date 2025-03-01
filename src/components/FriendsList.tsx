@@ -205,7 +205,7 @@ const FriendItem = ({ friend, index, onDelete }: FriendItemProps) => {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {friend.email || "Friend"}
+              {friend.username || friend.email || "Friend"}
             </p>
           </div>
         </div>

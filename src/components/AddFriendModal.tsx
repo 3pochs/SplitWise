@@ -14,22 +14,23 @@ type AddFriendModalProps = {
 };
 
 const AddFriendModal = ({ isOpen, onClose, onAddFriend }: AddFriendModalProps) => {
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = () => {
-    if (!name.trim()) {
-      setError("Please enter a name");
+    if (!username.trim()) {
+      setError("Please enter a username");
       return;
     }
 
     const newFriend: Friend = {
-      id: `friend-${Date.now()}`,
-      name: name.trim(),
+      id: `friend-${Date.now()}`, // This will be replaced with the actual ID from the server
+      name: username.trim(),
+      username: username.trim(), // Adding username field
     };
 
     onAddFriend(newFriend);
-    setName("");
+    setUsername("");
     setError("");
     onClose();
   };
@@ -49,15 +50,15 @@ const AddFriendModal = ({ isOpen, onClose, onAddFriend }: AddFriendModalProps) =
 
           <div className="p-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="friend-name">Name</Label>
+              <Label htmlFor="friend-username">Username</Label>
               <Input
-                id="friend-name"
-                value={name}
+                id="friend-username"
+                value={username}
                 onChange={(e) => {
-                  setName(e.target.value);
+                  setUsername(e.target.value);
                   setError("");
                 }}
-                placeholder="Enter friend's name"
+                placeholder="Enter friend's username"
                 className="glass-panel"
                 autoFocus
               />

@@ -4,6 +4,7 @@ export type Friend = {
   name: string;
   avatarUrl?: string;
   email?: string;
+  username?: string; // Added username field
   isUser?: boolean; // To distinguish between app users and external friends
 };
 

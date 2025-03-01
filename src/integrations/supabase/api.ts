@@ -84,21 +84,45 @@ export const fetchFriends = async (userId: string): Promise<Friend[]> => {
     id: profile.id,
     name: profile.name,
     email: profile.email,
+    username: profile.name, // Use name as username
     avatarUrl: profile.avatar_url,
-    isUser: false
+    isUser: true // They're all app users if found in profiles
   }));
 };
 
-export const addFriend = async (userId: string, friendEmail: string): Promise<Friend | null> => {
-  // First, check if the friend exists in profiles
+export const addFriend = async (userId: string, friendNameOrEmail: string): Promise<Friend | null> => {
+  // First, check if the friend exists in profiles by name
   const { data: friendData, error: friendError } = await supabase
     .from('profiles')
     .select('*')
-    .eq('email', friendEmail)
-    .single();
+    .eq('name', friendNameOrEmail)
+    .maybeSingle();
     
-  if (friendError || !friendData) {
+  if (friendError) {
     console.error('Error finding friend:', friendError);
+    return null;
+  }
+  
+  // If not found by name, try by email (fallback for backward compatibility)
+  if (!friendData) {
+    const { data: emailFriendData, error: emailFriendError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', friendNameOrEmail)
+      .maybeSingle();
+      
+    if (emailFriendError || !emailFriendData) {
+      console.error('Friend not found by name or email:', emailFriendError);
+      return null;
+    }
+    
+    // Set friendData to the result from email search
+    const friendData = emailFriendData;
+  }
+  
+  // If still not found, return null
+  if (!friendData) {
+    console.error('Friend not found by name or email');
     return null;
   }
   
@@ -107,7 +131,7 @@ export const addFriend = async (userId: string, friendEmail: string): Promise<Fr
     .from('friends')
     .select('*')
     .or(`and(user_id.eq.${userId},friend_id.eq.${friendData.id}),and(user_id.eq.${friendData.id},friend_id.eq.${userId})`)
-    .single();
+    .maybeSingle();
     
   if (existingFriend) {
     console.log('Friendship already exists');
@@ -115,8 +139,9 @@ export const addFriend = async (userId: string, friendEmail: string): Promise<Fr
       id: friendData.id,
       name: friendData.name,
       email: friendData.email,
+      username: friendData.name, // Use name as username
       avatarUrl: friendData.avatar_url,
-      isUser: false
+      isUser: true
     };
   }
   
@@ -140,8 +165,9 @@ export const addFriend = async (userId: string, friendEmail: string): Promise<Fr
     id: friendData.id,
     name: friendData.name,
     email: friendData.email,
+    username: friendData.name, // Use name as username
     avatarUrl: friendData.avatar_url,
-    isUser: false
+    isUser: true
   };
 };
 

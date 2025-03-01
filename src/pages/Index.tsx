@@ -144,7 +144,9 @@ const Index = () => {
     try {
       if (!user) return;
       
-      const newFriend = await addFriend(user.id, friend.email || friend.name + '@example.com');
+      // Now we can use either username or email to add a friend
+      const nameOrEmail = friend.username || friend.email || friend.name;
+      const newFriend = await addFriend(user.id, nameOrEmail);
       
       if (newFriend) {
         setFriends([...friends, newFriend]);
@@ -155,7 +157,7 @@ const Index = () => {
       } else {
         toast({
           title: "Friend not found",
-          description: "Could not find a user with that email address.",
+          description: "Could not find a user with that username.",
           variant: "destructive",
         });
       }
